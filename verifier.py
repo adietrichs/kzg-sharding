@@ -49,26 +49,39 @@ def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -
     used_commitments_weights = [commitment_weights[i] for i in range(N_rows) if commitment_weights[i] > 0]
     g1_sum = lincomb(used_commitments, used_commitments_weights, b.add, b.Z1)
 
-    aggregated_column_data = {j: [0] * N_locs for j in range(N_cols)}
+    # Step 4) Compute sum of the interpolation polynomials
+    # To do this, we perform the following logic:
+    # a) For each column, aggregate all data into an aggregated column sample (stored in `aggregated_column_samples`)
+    # b) For each column, compute interpolation polynomial (in coefficient form) that corresponds to the aggregated column sample
+    # c) Finally, add all column interpolation polynomials together to get the final aggregated interpolation polynomial
+
+    # We use `aggregated_column_samples` to store the scaled data points of each column
+    aggregated_column_samples = {j: [0] * N_locs for j in range(N_cols)}
+    # Iterate over each sample, scale its data points and update `aggregated_column_data`
     for sample, power_of_r in zip(samples, powers_of_r):
         scaled_data = [v * power_of_r for v in sample.vs] # scale the data points
-        aggregated_column_sample[sample.j] = vector_entrywise_addition(aggregated_column_sample[sample.j], scaled_data)
+        aggregated_column_samples[sample.j] = vector_entrywise_addition(aggregated_column_samples[sample.j], scaled_data)
 
-    # We iterate over each sample and aggregate all the interpolation polynomials into `aggregated_interpolation_polynomial`
-    aggregated_interpolation_polynomial = [0] * N_locs
-    root_of_unity = get_root_of_unity(N_locs)
+    # The final aggregated interpolation polynomial
+    aggregated_interpolation_poly = [0] * N_locs
+    # Iterate over each column and compute the column interpolation polynomial
+    root_of_unity = get_root_of_unity(N_locs) # generator for a small roots of unity subgroup used for interpolations
     for j in range(N_cols):
-        if aggregated_column_data[j] == [0] * N_locs:
+        if aggregated_column_samples[j] == [0] * N_locs: # skip this column if we have no samples from it
             continue
-        coset_factor = get_coset_factor(j, N_locs)
-        interpolation_polynomial = fft(list_to_reverse_bit_order(aggregated_column_data[j]), MODULUS, root_of_unity, True)
-        interpolation_polynomial = [div(c, pow(coset_factor, i, MODULUS)) for i, c in enumerate(interpolation_polynomial)]
-        # Update the aggregated interpolation polynomial
-        aggregated_interpolation_polynomial = vector_entrywise_addition(aggregated_interpolation_polynomial, interpolation_polynomial)
+        coset_factor = get_coset_factor(j, N_locs) # get coset factor for this column
 
-    # Commit to the aggregated interpolation polynomial by evaluating it at `s` using the CRS
+        # Get interpolation polynomial for this column. To do so we first do an FFT over the roots of unity and then we
+        # scale by the coset factor. We can't do an FFT directly over the coset because it's not a subgroup.
+        column_interpolation_poly = fft(list_to_reverse_bit_order(aggregated_column_samples[j]), MODULUS, root_of_unity, True)
+        column_interpolation_poly = [div(c, pow(coset_factor, i, MODULUS)) for i, c in enumerate(column_interpolation_poly)]
+
+        # While we are at it, update the final aggregated interpolation polynomial
+        aggregated_interpolation_poly = vector_entrywise_addition(aggregated_interpolation_poly, column_interpolation_poly)
+
+    # Commit to the final aggregated interpolation polynomial
     evaluation = lincomb(
-        get_setup()[0][:len(aggregated_interpolation_polynomial)], aggregated_interpolation_polynomial, b.add, b.Z1)
+        get_setup()[0][:len(aggregated_interpolation_poly)], aggregated_interpolation_poly, b.add, b.Z1)
     g1_sum = b.add(g1_sum, b.neg(evaluation))
 
     weights = [pow(get_coset_factor(sample.j, N_locs), N_locs, MODULUS) for sample in samples]
