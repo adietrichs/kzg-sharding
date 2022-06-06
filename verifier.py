@@ -31,23 +31,32 @@ def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -
     if len(samples) == 0:
         return True
 
-    N_rows = len(commitments)
-    N_locs = len(samples[0].vs)
-    N_cols = len(get_setup()[0]) // N_locs
+    N_rows = len(commitments)  # Number of rows of the blob matrix
+    N_locs = len(samples[0].vs)  # Number of data points in each sample
+    N_cols = len(get_setup()[0]) // N_locs  # Number of columns of the blob matrix
 
+    # Derive random factors for the random linear combination
     r = random.randint(1, MODULUS - 1)
     powers_of_r = [pow(r, k + 1, MODULUS) for k in range(len(samples))]
 
+    # Let's compute the verification formula from left-to-right.
+    # Step 1) Compute random linear combination of the proofs
     proofs = [sample.proof for sample in samples]
     proof_lincomb = lincomb(proofs, powers_of_r, b.add, b.Z1)
+
+    # Step 2) Get [s^16]
     power_of_s = get_setup()[1][N_locs]
 
-    commitment_weights = {i: 0 for i in range(N_rows)}
+    # Step 3) Compute sum of the commitments
+    # First compute sum of the random lincomb factors for each commitment
+    commitment_weights = [0] * N_rows
     for k, sample in enumerate(samples):
         commitment_weights[sample.i] += powers_of_r[k]
+    # Find the commitments that correspond to the received samples
     used_commitments = [commitments[i] for i in range(N_rows) if commitment_weights[i] > 0]
     used_commitments_weights = [commitment_weights[i] for i in range(N_rows) if commitment_weights[i] > 0]
-    g1_sum = lincomb(used_commitments, used_commitments_weights, b.add, b.Z1)
+    # Compute commitment sum
+    final_g1_sum = lincomb(used_commitments, used_commitments_weights, b.add, b.Z1)
 
     # Step 4) Compute sum of the interpolation polynomials
     # To do this, we perform the following logic:
@@ -82,14 +91,16 @@ def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -
     # Commit to the final aggregated interpolation polynomial
     evaluation = lincomb(
         get_setup()[0][:len(aggregated_interpolation_poly)], aggregated_interpolation_poly, b.add, b.Z1)
-    g1_sum = b.add(g1_sum, b.neg(evaluation))
+    final_g1_sum = b.add(final_g1_sum, b.neg(evaluation))
 
+    # Step 5) Compute sum of the proofs scaled by the coset factors
     weights = [pow(get_coset_factor(sample.j, N_locs), N_locs, MODULUS) for sample in samples]
     weighted_powers_of_r = [power_of_r * weight for power_of_r, weight in zip(powers_of_r, weights)]
     weighted_proof_lincomb = lincomb(proofs, weighted_powers_of_r, b.add, b.Z1)
-    g1_sum = b.add(g1_sum, weighted_proof_lincomb)
+    final_g1_sum = b.add(final_g1_sum, weighted_proof_lincomb)
 
-    pairing_check = b.pairing(b.G2, b.neg(g1_sum), False)
+    # Step 6) Do the final pairing check
+    pairing_check = b.pairing(b.G2, b.neg(final_g1_sum), False)
     pairing_check *= b.pairing(power_of_s, proof_lincomb, False)
     pairing = b.final_exponentiate(pairing_check)
     return pairing == b.FQ12.one()

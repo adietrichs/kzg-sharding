@@ -22,6 +22,7 @@ def create_matrix(blobs: [[int]], N_locs: int) -> ([[Sample]], [Optimized_Point3
     matrix = []
     commitments = []
 
+    # For each blob, compute the corresponding polynomial. Then split the blob into samples and compute their multiproofs.
     for i, blob in enumerate(blobs):
         polynomial = fft(list_to_reverse_bit_order(blob), MODULUS, get_root_of_unity(len(blobs[0])), True)
 
