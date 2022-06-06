@@ -20,9 +20,10 @@ def verify(sample: Sample, commitments: [Optimized_Point3D[FQ]]) -> bool:
     return check_proof_multi(commitment, sample.proof, coset_factor, ys, get_setup())
 
 
-def field_multiadd(as_: [int], bs: [int]) -> [int]:
-    assert len(as_) == len(bs)
-    return [a + b % MODULUS for a, b in zip(as_, bs)]
+def vector_entrywise_addition(vec_a: [int], vec_b: [int]) -> [int]:
+    """Compute the entrywise addition of two vectors"""
+    assert len(vec_a) == len(vec_b)
+    return [a + b % MODULUS for a, b in zip(vec_a, vec_b)]
 
 
 def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -> bool:
@@ -50,8 +51,10 @@ def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -
 
     aggregated_column_data = {j: [0] * N_locs for j in range(N_cols)}
     for sample, power_of_r in zip(samples, powers_of_r):
-        scaled_data = [v * power_of_r for v in sample.vs]
-        aggregated_column_data[sample.j] = field_multiadd(aggregated_column_data[sample.j], scaled_data)
+        scaled_data = [v * power_of_r for v in sample.vs] # scale the data points
+        aggregated_column_sample[sample.j] = vector_entrywise_addition(aggregated_column_sample[sample.j], scaled_data)
+
+    # We iterate over each sample and aggregate all the interpolation polynomials into `aggregated_interpolation_polynomial`
     aggregated_interpolation_polynomial = [0] * N_locs
     root_of_unity = get_root_of_unity(N_locs)
     for j in range(N_cols):
@@ -60,7 +63,10 @@ def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -
         coset_factor = get_coset_factor(j, N_locs)
         interpolation_polynomial = fft(list_to_reverse_bit_order(aggregated_column_data[j]), MODULUS, root_of_unity, True)
         interpolation_polynomial = [div(c, pow(coset_factor, i, MODULUS)) for i, c in enumerate(interpolation_polynomial)]
-        aggregated_interpolation_polynomial = field_multiadd(aggregated_interpolation_polynomial, interpolation_polynomial)
+        # Update the aggregated interpolation polynomial
+        aggregated_interpolation_polynomial = vector_entrywise_addition(aggregated_interpolation_polynomial, interpolation_polynomial)
+
+    # Commit to the aggregated interpolation polynomial by evaluating it at `s` using the CRS
     evaluation = lincomb(
         get_setup()[0][:len(aggregated_interpolation_polynomial)], aggregated_interpolation_polynomial, b.add, b.Z1)
     g1_sum = b.add(g1_sum, b.neg(evaluation))
