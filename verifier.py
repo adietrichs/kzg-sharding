@@ -39,7 +39,11 @@ def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -
     r = random.randint(1, MODULUS - 1)
     powers_of_r = [pow(r, k + 1, MODULUS) for k in range(len(samples))]
 
-    # Let's compute the verification formula from left-to-right.
+    # Here is a (simplified version) of the verification formula:
+    #     e(∑ₖ rᵏ πₖ, [s¹⁶]₂) = e(∑ᵢ(∑ rᵏ)Cᵢ − [I(s)]₁ + ∑ₖ rᵏ hⱼ¹⁶πₖ, [1]₂)
+    #        where I(x) = ∑ₖ rᵏ Iₖ(x) = ∑ⱼ∑ₗ(∑ rᵏ νₖₗ)Lⱼₗ(x)
+    # In the following code we will be computing the verification formula from left-to-right:
+
     # Step 1) Compute random linear combination of the proofs
     proofs = [sample.proof for sample in samples]
     proof_lincomb = lincomb(proofs, powers_of_r, b.add, b.Z1)
