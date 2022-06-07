@@ -2,13 +2,13 @@ import random
 from unittest import TestCase
 
 from py_ecc.fields import optimized_bls12_381_FQ as FQ
-from py_ecc.typing import Optimized_Point3D
 
 from prover import create_matrix
 from setup import generate_setup
 from shared import MODULUS, Sample
 from verifier import verify, verify_aggregated
 
+from my_types import G1Point
 
 s = 1927409816240961209460912649124
 N_rows = 4
@@ -19,7 +19,7 @@ generate_setup(s, N_cols * N_locs - 1)
 
 class TestMatrix(TestCase):
     matrix: [[Sample]]
-    commitments: [Optimized_Point3D[FQ]]
+    commitments: [G1Point]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1,8 +1,6 @@
 import random
 
 from py_ecc import optimized_bls12_381 as b
-from py_ecc.fields import optimized_bls12_381_FQ as FQ
-from py_ecc.typing import Optimized_Point3D
 
 from imported.fft import fft
 from imported.kzg_proofs import div, list_to_reverse_bit_order, get_root_of_unity, check_proof_multi
@@ -10,9 +8,10 @@ from imported.multicombs import lincomb
 
 from setup import get_setup
 from shared import MODULUS, Sample, get_coset_factor
+from my_types import G1Point
 
 
-def verify(sample: Sample, commitments: [Optimized_Point3D[FQ]]) -> bool:
+def verify(sample: Sample, commitments: [G1Point]) -> bool:
     """Verify a single sample multiproof"""
     commitment = commitments[sample.i]
     coset_factor = get_coset_factor(sample.j, len(sample.vs))
@@ -26,7 +25,7 @@ def vector_entrywise_addition(vec_a: [int], vec_b: [int]) -> [int]:
     return [a + b % MODULUS for a, b in zip(vec_a, vec_b)]
 
 
-def verify_aggregated(samples: [Sample], commitments: [Optimized_Point3D[FQ]]) -> bool:
+def verify_aggregated(samples: [Sample], commitments: [G1Point]) -> bool:
     """Verify multiple sample multiproofs at once"""
     if len(samples) == 0:
         return True
