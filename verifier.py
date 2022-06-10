@@ -83,8 +83,8 @@ def verify_aggregated(samples: [Sample], commitments: [G1Point]) -> bool:
             continue
         coset_factor = get_coset_factor(j, N_locs) # get coset factor for this column
 
-        # Get interpolation polynomial for this column. To do so we first do an FFT over the roots of unity and then we
-        # scale by the coset factor. We can't do an FFT directly over the coset because it's not a subgroup.
+        # Get interpolation polynomial for this column. To do so we first do an IDFT over the roots of unity and then we
+        # scale by the coset factor. We can't do an IDFT directly over the coset because it's not a subgroup.
         column_interpolation_poly = fft(list_to_reverse_bit_order(aggregated_column_samples[j]), MODULUS, root_of_unity, True)
         column_interpolation_poly = [div(c, pow(coset_factor, i, MODULUS)) for i, c in enumerate(column_interpolation_poly)]
 
