@@ -2,12 +2,12 @@ from typing import Optional
 
 from py_ecc import optimized_bls12_381 as b
 from py_ecc.fields import optimized_bls12_381_FQ as FQ, optimized_bls12_381_FQ2 as FQ2
-from py_ecc.typing import Optimized_Point3D
 
+from my_types import G1Point, G2Point
 
 MODULUS = b.curve_order
 
-_setup = None  # type: Optional[([Optimized_Point3D[FQ]], [Optimized_Point3D[FQ2]])]
+_setup = None  # type: Optional[([G1Point], [G2Point])]
 
 
 def generate_setup(s: int, size: int) -> None:
@@ -22,6 +22,6 @@ def generate_setup(s: int, size: int) -> None:
     )
 
 
-def get_setup() -> ([Optimized_Point3D[FQ]], [Optimized_Point3D[FQ2]]):
+def get_setup() -> ([G1Point], [G2Point]):
     assert _setup is not None
     return _setup

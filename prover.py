@@ -1,15 +1,13 @@
-from py_ecc.fields import optimized_bls12_381_FQ as FQ
-from py_ecc.typing import Optimized_Point3D
-
 from imported.fft import fft
 from imported.kzg_proofs import is_power_of_two, get_root_of_unity, list_to_reverse_bit_order, commit_to_poly,\
     compute_proof_multi
 
 from setup import get_setup
 from shared import MODULUS, Sample, get_coset_factor
+from my_types import G1Point
 
 
-def create_matrix(blobs: [[int]], N_locs: int) -> ([[Sample]], [Optimized_Point3D[FQ]]):
+def create_matrix(blobs: [[int]], N_locs: int) -> ([[Sample]], [G1Point]):
     """Create sharding matrix and commitments from blobs"""
 
     # ensure data integrity
@@ -22,6 +20,7 @@ def create_matrix(blobs: [[int]], N_locs: int) -> ([[Sample]], [Optimized_Point3
     matrix = []
     commitments = []
 
+    # For each blob, compute the corresponding polynomial. Then split the blob into samples and compute their multiproofs.
     for i, blob in enumerate(blobs):
         polynomial = fft(list_to_reverse_bit_order(blob), MODULUS, get_root_of_unity(len(blobs[0])), True)
 
