@@ -35,3 +35,7 @@ class TestMatrix(TestCase):
     def test_verify_aggregated_sample_proofs(self):
         samples = [self.matrix[0][3], self.matrix[2][0], self.matrix[2][2], self.matrix[3][2]]
         self.assertTrue(verify_aggregated(samples, self.commitments))
+
+if __name__ == '__main__':
+    import unittest
+    unittest.main()
