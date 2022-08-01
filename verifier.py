@@ -25,10 +25,9 @@ def vector_entrywise_addition(vec_a: [int], vec_b: [int]) -> [int]:
     return [a + b % MODULUS for a, b in zip(vec_a, vec_b)]
 
 
-def verify_aggregated(samples: [Sample], commitments: [G1Point]) -> bool:
+def get_aggregated_pairings(samples: [Sample], commitments: [G1Point], rpower_base: int) -> (b.FQ12, b.FQ12):
     """Verify multiple sample multiproofs at once"""
-    if len(samples) == 0:
-        return True
+    assert len(samples) > 0
 
     N_rows = len(commitments)  # Number of rows of the blob matrix
     N_locs = len(samples[0].vs)  # Number of data points in each sample
@@ -36,7 +35,7 @@ def verify_aggregated(samples: [Sample], commitments: [G1Point]) -> bool:
 
     # Derive random factors for the random linear combination
     r = random.randint(1, MODULUS - 1)
-    powers_of_r = [pow(r, k + 1, MODULUS) for k in range(len(samples))]
+    powers_of_r = [pow(r, k, MODULUS) for k in range(rpower_base, rpower_base + len(samples))]
 
     # Here is a (simplified version) of the verification formula:
     #     e(∑ₖ rᵏ πₖ, [s¹⁶]₂) = e(∑ᵢ(∑ rᵏ)Cᵢ − [I(s)]₁ + ∑ₖ rᵏ hⱼ¹⁶πₖ, [1]₂)
@@ -102,8 +101,21 @@ def verify_aggregated(samples: [Sample], commitments: [G1Point]) -> bool:
     weighted_proof_lincomb = lincomb(proofs, weighted_powers_of_r, b.add, b.Z1)
     final_g1_sum = b.add(final_g1_sum, weighted_proof_lincomb)
 
-    # Step 6) Do the final pairing check
-    pairing_check = b.pairing(b.G2, b.neg(final_g1_sum), False)
-    pairing_check *= b.pairing(power_of_s, proof_lincomb, False)
+    # Step 6) Calculate the final pairings
+    pairing_right = b.pairing(b.G2, b.neg(final_g1_sum), False)
+    pairing_left = b.pairing(power_of_s, proof_lincomb, False)
+    return pairing_left, pairing_right
+
+
+def verify_aggregated(samples: [Sample], commitments: [G1Point]) -> bool:
+    """Verify multiple sample multiproofs at once"""
+    if len(samples) == 0:
+        return True
+
+    # Obtain the pairings
+    pairing_left, pairing_right = get_aggregated_pairings(samples, commitments, 1)
+
+    # Do the final pairing check
+    pairing_check = pairing_left * pairing_right
     pairing = b.final_exponentiate(pairing_check)
     return pairing == b.FQ12.one()
