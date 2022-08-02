@@ -7,6 +7,7 @@ from prover import create_matrix
 from setup import generate_setup
 from shared import MODULUS, Sample
 from verifier import verify, verify_aggregated
+from detector import detect_aggregated
 
 from my_types import G1Point
 
@@ -35,3 +36,19 @@ class TestMatrix(TestCase):
     def test_verify_aggregated_sample_proofs(self):
         samples = [self.matrix[0][3], self.matrix[2][0], self.matrix[2][2], self.matrix[3][2]]
         self.assertTrue(verify_aggregated(samples, self.commitments))
+
+    def test_verify_aggregated_sample_proofs_with_corrupted_sample(self):
+        samples = [self.matrix[0][3], self.matrix[2][0], self.matrix[2][2], self.matrix[3][2]]
+        # corrupt one sample
+        samples[0].vs[0] += 1
+        self.assertFalse(verify_aggregated(samples, self.commitments))
+
+    def test_detect_aggregated_sample_proofs_(self):
+        samples = [self.matrix[0][3], self.matrix[2][0], self.matrix[2][2], self.matrix[3][2]]
+        # corrupt one sample
+        samples[0].vs[0] += 1
+        self.assertEqual(detect_aggregated(samples, self.commitments), [0])
+
+        # corrupt another sample
+        samples[3].vs[3] += 1
+        self.assertEqual(detect_aggregated(samples, self.commitments), [0, 3])
